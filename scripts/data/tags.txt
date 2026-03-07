@@ -1,0 +1,10 @@
+live
+studio
+acoustic
+electronic
+instrumental
+vocal
+ambient
+cinematic
+experimental
+improv

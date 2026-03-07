@@ -1,0 +1,744 @@
+<!-- DEX — About Hub (no page scroll; card scrolls; arrows; pinned CTAs) -->
+<section id="dex-about">
+  <style>
+    /* ─────────────────────────────────────────────────────────
+       Scope + tokens (inherits your global variables & fonts)
+       ───────────────────────────────────────────────────────── */
+    #dex-about, #dex-about * { box-sizing: border-box; }
+    #dex-about{
+  position: relative;
+  width: 100%;
+  height: var(--about-h, 80vh);          /* JS sets exact fit */
+  display: grid;
+  grid-template-rows: auto 1fr;          /* header + stage */
+  row-gap: var(--gap);                   /* NEW: space between header card and stage */
+  --pad: var(--space-4, 24px);
+  --gap: var(--space-2, 8px);
+  --foot-h: 28px;
+  --cta-clear: 64px;
+  color: #000;
+  font-family: var(--font-body,'Courier New',monospace);
+  contain: layout paint;
+}
+
+
+    /* header (static / non-scrolling) */
+    #dex-about .hdr{
+      padding: var(--pad);
+      display:flex; align-items:center; justify-content:space-between;
+      gap: 12px; flex-wrap: wrap;
+    }
+    #dex-about h1{
+      margin:0;
+      font-family: var(--font-heading,'Typefesse',sans-serif);
+      text-transform:uppercase; letter-spacing:0;
+      font-size: clamp(20px,3.4vw,32px); line-height:1.06;
+      font-variant-ligatures: common-ligatures discretionary-ligatures contextual;
+      font-feature-settings: "liga" 1, "dlig" 1, "calt" 1, "ss01" 1, "salt" 1, "rlig" 1;
+    }
+    #dex-about .lead{ margin:6px 0 0; opacity:.95; font-size: clamp(12.5px,1.1vw,14px); }
+
+    /* pills / tabs */
+    #dex-about .pills{ display:inline-grid; grid-auto-flow:column; gap: var(--space-1,6px); align-items:center; }
+    #dex-about .pill{
+      padding:.36rem .62rem;
+      border:1px solid var(--liquid-border,rgba(255,255,255,.35));
+      background: var(--liquid-bg,rgba(255,255,255,.18));
+      border-radius:4px !important;
+      font:700 clamp(11px,1vw,12px) var(--font-heading,'Typefesse',sans-serif);
+      text-transform:uppercase; letter-spacing:.02em; color:#000; cursor:pointer;
+      transition: transform .16s cubic-bezier(.2,.7,.2,1), box-shadow .22s cubic-bezier(.2,.7,.2,1);
+      will-change: transform;
+    }
+    #dex-about .pill:hover{ transform: translateY(-1px); }
+    #dex-about .pill[aria-selected="true"]{
+      color:#fff; border-color:transparent;
+      background:linear-gradient(130deg,var(--dex-accent,#ff1910),orange);
+      box-shadow:0 8px 24px rgba(255,0,80,.24);
+    }
+    @media (max-width: 640px){
+      #dex-about .hdr{ flex-direction:column; align-items:flex-start; gap:8px; }
+      #dex-about .pills{ grid-auto-flow:row; width:100%; }
+    }
+
+    /* stage (contains panes) — full height; inner glass scrolls only */
+    #dex-about .stage{
+      position: relative;
+      min-height: 0;                    /* let children size */
+      display: grid;
+      grid-template-columns: 1fr;
+    }
+    #dex-about .pane{
+      display: none;
+      grid-template-rows: 1fr auto;     /* scroll card + footline */
+      gap: var(--gap);
+      padding: 0 0 calc(var(--cta-clear) + var(--foot-h) + 8px);
+      position: relative;
+      min-height: 0;
+    }
+    #dex-about .pane[aria-hidden="false"]{ display: grid; }
+
+    /* the body card (GLASS) — this is the ONLY scroller */
+    #dex-about .glass{
+      background: rgba(255,255,255,0.6);
+      backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+      border: 1px solid rgba(255,255,255,0.3);
+      border-radius: 4px !important;
+      box-shadow: var(--shadow-light,0 8px 24px rgba(0,0,0,.12));
+      margin: 0;
+      min-height: 0;
+      display: grid;
+      grid-template-rows: 1fr;          /* single scroll region */
+    }
+    #dex-about .inner{
+      padding: var(--pad);
+      overflow-y: auto;                 /* ← body card scrolls */
+      -webkit-overflow-scrolling: touch;
+      min-height: 0;
+      display: grid; gap: var(--gap);
+      align-content: start; justify-items: start;
+      text-align: left;
+    }
+/* Header card (glass, non-scrolling) */
+#dex-about header.headcard{
+  /* re-use your glass shell */
+  background: rgba(255,255,255,0.6);
+  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+  border: 1px solid rgba(255,255,255,0.3);
+  border-radius: 4px !important;
+  box-shadow: var(--shadow-light,0 8px 24px rgba(0,0,0,.12));
+  display: grid; grid-template-rows: 1fr;
+}
+#dex-about header.headcard .inner{
+  padding: var(--pad);
+  overflow: visible;            /* header never scrolls */
+}
+#dex-about header.headcard .hdr{ padding: 0; }  /* avoid double padding (inner already pads) */
+
+    /* section titles & text */
+    #dex-about .p1{
+      margin:0;
+      font-family: var(--font-heading,'Typefesse',sans-serif);
+      font-weight:700; letter-spacing:0; text-transform:uppercase;
+      font-size: clamp(13px,1.3vw,15px); line-height:1.06;
+    }
+    #dex-about p, #dex-about li{ font-size: clamp(13px,1.15vw,15px); line-height: 1.45; }
+    #dex-about ul{ margin:0; padding-left:1rem; display:grid; gap:6px; }
+
+    /* facts stripe */
+    #dex-about .facts{
+      display:grid; grid-template-columns: repeat(3,minmax(0,1fr));
+      gap: var(--gap); width:100%;
+    }
+    #dex-about .fact{
+      padding:10px; background:var(--liquid-bg,rgba(255,255,255,.18));
+      border:1px solid var(--liquid-border,rgba(255,255,255,.35));
+      border-radius:4px !important; font-size: clamp(12.5px,1.05vw,13.5px);
+      white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    }
+    #dex-about .fact b{ display:block; opacity:.75; font-size:.92em; margin-bottom:2px; }
+    @media (max-width:880px){ #dex-about .facts{ grid-template-columns:1fr 1fr 1fr; } }
+
+    /* footline (inside pane, below card; non-scrolling line) */
+    #dex-about .footline{
+      height: var(--foot-h);
+      display:flex; align-items:center; justify-content:flex-start;
+      gap:6px; padding:0 var(--pad);
+      white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+      font-size: clamp(12px,1vw,13px); opacity:.95;
+      background: rgba(255,255,255,0.6);
+      border: 1px solid rgba(255,255,255,0.3);
+      border-radius: 4px !important;
+      box-shadow: var(--shadow-light,0 8px 24px rgba(0,0,0,.12));
+    }
+
+    /* pinned bottom CTAs (global primary/secondary styles handle look) */
+    #dex-about .bottom-ctas{
+      position:absolute; left: var(--pad); right: var(--pad);
+      bottom: calc(var(--foot-h) + 8px);
+      display:flex; gap:12px; z-index: 2; flex-wrap: wrap;
+    }
+    #dex-about .bottom-ctas > a{ flex:1 1 0; text-align:center; }
+
+    /* side nav arrows (pinned to section, vertical center) */
+    #dex-about .nav{
+      position:absolute; top:50%; transform: translateY(-50%);
+      z-index: 5; display:flex; align-items:center; justify-content:center;
+      width:34px; height:46px; border-radius:4px;
+      border:1px solid var(--liquid-border,rgba(255,255,255,.35));
+      background: var(--liquid-bg,rgba(255,255,255,.18));
+      cursor:pointer;
+      transition: transform .18s cubic-bezier(.2,.7,.2,1), box-shadow .22s cubic-bezier(.2,.7,.2,1);
+    }
+    #dex-about .stage .nav-left{ left:6px; }
+#dex-about .stage .nav-right{ right:6px; }
+    #dex-about .nav:hover{ transform: translateY(-50%) scale(1.04); box-shadow: 0 12px 32px rgba(0,0,0,.12); }
+    #dex-about .nav-left{ left:6px; }  #dex-about .nav-right{ right:6px; }
+    #dex-about .nav svg{ width:18px; height:18px; fill:#000; }
+
+    /* micro motion */
+    @media (prefers-reduced-motion: no-preference){
+      #dex-about .pane[aria-hidden="false"] .inner{
+        animation: about-in 300ms cubic-bezier(.16,.84,.22,1) both;
+      }
+      @keyframes about-in{
+        from{ opacity:0; transform: translateX(14px); }
+        to  { opacity:1; transform: none; }
+      }
+      #dex-about .pane[aria-hidden="false"] .bottom-ctas,
+      #dex-about .pane[aria-hidden="false"] .footline{
+        animation: about-bars 260ms cubic-bezier(.16,.84,.22,1) 80ms both;
+      }
+      @keyframes about-bars{
+        from{ opacity:0; transform: translateY(10px); }
+        to  { opacity:1; transform: none; }
+      }
+    }
+  </style>
+
+  <!-- Header (static, GLASS CARD) -->
+<header class="glass dex-sidebar headcard">
+  <div class="inner">
+    <div class="hdr">
+      <div>
+        <h1>Dex Digital Sample Library</h1>
+        <p class="lead">A nonprofit, open-access library of artist-made audio-visual materials for legal reuse under CC BY 4.0.</p>
+      </div>
+      <nav class="pills" role="tablist" aria-label="About navigation">
+        <button class="pill" type="button" role="tab" data-pane="mission"   aria-selected="true">About</button>
+        <button class="pill" type="button" role="tab" data-pane="work"      aria-selected="false">What We Do</button>
+        <button class="pill" type="button" role="tab" data-pane="impact"    aria-selected="false">Impact</button>
+        <button class="pill" type="button" role="tab" data-pane="team"      aria-selected="false">Team</button>
+        <button class="pill" type="button" role="tab" data-pane="partners"  aria-selected="false">Partners</button>
+        <button class="pill" type="button" role="tab" data-pane="press"     aria-selected="false">Press</button>
+        <button class="pill" type="button" role="tab" data-pane="contact"   aria-selected="false">Contact</button>
+        <button class="pill" type="button" role="tab" data-pane="license"   aria-selected="false">License</button>
+      </nav>
+    </div>
+  </div>
+</header>
+
+
+  
+
+  <!-- Stage (panes) -->
+   <!-- Side Nav Arrows -->
+  <button class="nav nav-left"  type="button" id="aboutPrev" aria-label="Previous">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.41 7.41 14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
+  </button>
+  <button class="nav nav-right" type="button" id="aboutNext" aria-label="Next">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8.59 16.59 1.41 1.41L16 12 10 6 8.59 7.41 13.17 12z"/></svg>
+  </button>
+  <main class="stage">
+    <!-- MISSION -->
+    <section id="pane-mission" class="pane" aria-hidden="false">
+      <div class="glass dex-sidebar">
+        <div class="inner">
+          <h2 class="p1">MISSION</h2>
+          <p><b>dex</b> is a nonprofit, open-access library that commissions, documents, and publishes artist-made audio-visual materials under <b>Creative Commons Attribution 4.0</b>, enabling legal reuse—with attribution—by creators, educators, and institutions.</p>
+          <div class="facts">
+            <div class="fact"><b>CC Default</b> CC BY 4.0 (unless noted)</div>
+            <div class="fact"><b>Hours Published</b> 30+ hrs</div>
+            <div class="fact"><b>Artists Featured</b> 24+</div>
+          </div>
+        </div>
+      </div>
+      <div class="footline dex-sidebar">Open access · Artist commissions · Public-interest licensing · Free, forever</div>
+      <div class="bottom-ctas">
+        <a href="/dex/" class="dx-button-element dx-button-size--md dx-button-element--secondary">More About Dex</a>
+        <a href="#license" class="dx-button-element dx-button-size--md dx-button-element--primary" data-goto="license">What CC BY 4.0 Means</a>
+      </div>
+    </section>
+
+    <!-- WORK -->
+    <section id="pane-work" class="pane" aria-hidden="true">
+      <div class="glass dex-sidebar">
+        <div class="inner">
+          <h2 class="p1">What We Do</h2>
+          <h3 class="p1" style="margin-top:4px;">COMMISSION & RECORD</h3>
+          <p>We commission performance sessions designed for downstream reuse—clean audio capture, camera placements that read in editorial/score-following contexts, and session notes for teaching and research.</p>
+          <h3 class="p1">Publish for Legal Reuse</h3>
+          <p>We release high-quality audio/video with page-level metadata and clear attribution guidance. Everything defaults to CC BY 4.0 to remove friction.</p>
+          <h3 class="p1">Programs & Opportunities</h3>
+          <p>Open calls, residencies, and community programs broaden participation while compensating artists and expanding the public collection.</p>
+          <h3 class="p1">Learning & Tools</h3>
+          <p>Dex Notes and reference pages explain attribution, licensing, and best practices, with examples that make reuse practical.</p>
+        </div>
+      </div>
+      <div class="footline dex-sidebar">Formats that travel · Clear rights · Practical guidance</div>
+      <div class="bottom-ctas">
+        <a href="/programs/" class="dx-button-element dx-button-size--md dx-button-element--secondary">Current Programs</a>
+        <a href="#contact" class="dx-button-element dx-button-size--md dx-button-element--primary" data-goto="contact">Propose a Project</a>
+      </div>
+    </section>
+
+    <!-- IMPACT -->
+    <section id="pane-impact" class="pane" aria-hidden="true">
+      <div class="glass dex-sidebar">
+        <div class="inner">
+          <h2 class="p1">Impact at a Glance</h2>
+          <ul>
+            <li><b>30+ hours</b> published to date.</li>
+            <li><b>24+ artists</b> commissioned and featured.</li>
+            <li><b>100% CC BY 4.0</b> unless otherwise noted.</li>
+            <li><b>3+ countries</b> represented across contributors and audiences.</li>
+            <!-- <li><b>{RELEASES_REFERENCED}+ releases</b> cite Dex materials.</li> -->
+          </ul>
+          <p><em>Counts update quarterly from internal logs and public pages.</em></p>
+        </div>
+      </div>
+      <div class="footline dex-sidebar">Public value · Measurable reuse · Reinvestment into artists</div>
+      <div class="bottom-ctas">
+        <a href="/dex/" class="dx-button-element dx-button-size--md dx-button-element--secondary">Methodology</a>
+        <a href="/copyright#attribution" class="dx-button-element dx-button-size--md dx-button-element--primary">Attribution Examples</a>
+      </div>
+    </section>
+
+    <!-- TEAM (UPGRADED: filters, grid, deep links, modal) -->
+    <section id="pane-team" class="pane" aria-hidden="true">
+      <style id="dex-team-css">
+  /* Minimal vertical 3-person roster (glass, elegant, static) */
+  #pane-team .inner{ min-height:0; overflow:auto; }
+
+  /* Stack members vertically (one per row) */
+  #pane-team .roster{
+    display:grid; gap: var(--space-2,12px);
+    grid-auto-rows: minmax(0, auto);
+  }
+
+  /* Member row: portrait left, content right */
+  #pane-team .member{
+    display:grid; grid-template-columns: auto 1fr; gap:12px;
+    padding:10px;
+    border:1px solid var(--liquid-border,rgba(255,255,255,.35));
+    background:var(--liquid-bg,rgba(255,255,255,.18));
+    border-radius:4px;
+    will-change: auto;      /* no layer promotion */
+    transition: none;       /* no hover animation */
+    contain: paint;         /* isolate paints; no background invalidation */
+  }
+  /* no visual hover changes for member rows */
+  @media (hover:hover){
+    #pane-team .member:hover{ transform:none; }
+  }
+
+  /* Portrait: square, 4px radius */
+  #pane-team .portrait{
+    width:120px; height:120px; object-fit:cover; flex:0 0 auto;
+    border-radius:4px; background:#f6f6f6;
+    box-shadow: var(--shadow-light, 0 4px 12px rgba(0,0,0,.08));
+  }
+
+  /* Meta block */
+  #pane-team .meta{ display:grid; gap:6px; align-content:start; min-width:0; }
+  #pane-team .name{
+    margin:0;
+    font-family: var(--font-heading,'Typefesse',sans-serif);
+    text-transform: uppercase; letter-spacing:0;
+    font-size: clamp(14px,1.3vw,18px); line-height:1.06;
+  }
+  #pane-team .title{
+    margin:0; opacity:.95;
+    font: clamp(12.5px,1.05vw,14px) var(--font-body,'Courier New',monospace);
+  }
+
+  /* 3-line clamp for bio (expanded in modal when "Read Bio") */
+  #pane-team .bio{
+    margin:2px 0 0;
+    font: clamp(12.5px,1.05vw,14px) var(--font-body,'Courier New',monospace);
+    line-height:1.45;
+    display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden;
+  }
+
+  /* Buttons row */
+  #pane-team .links{ display:flex; flex-wrap:wrap; gap:8px; margin-top:4px; }
+  #pane-team .links a,
+  #pane-team .links button{
+    padding:.42rem .70rem; border-radius:4px; cursor:pointer;
+    border:1px solid var(--liquid-border,rgba(255,255,255,.35));
+    background:var(--liquid-bg,rgba(255,255,255,.18));
+    font:700 clamp(11px,1vw,12px) var(--font-heading,'Typefesse',sans-serif);
+    text-transform:uppercase; letter-spacing:.02em; text-decoration:none; color:#000;
+    will-change: auto;
+    transition: none;  /* keep SQS look; just remove movement */
+  }
+  /* preserve SQS primary/secondary visuals; just block movement */
+  #pane-team .links a:hover,
+  #pane-team .links button:hover{ transform:none; }
+
+  /* Respect SQS button skins */
+  #pane-team .links .dx-button-element--primary{
+    color:#fff; border-color:transparent;
+    background:linear-gradient(130deg,var(--dex-accent,#ff1910),orange);
+    box-shadow:0 8px 18px rgba(255,0,80,.20);
+  }
+  #pane-team .links .dx-button-element--secondary{
+    background:var(--liquid-bg,rgba(255,255,255,.18));
+    border:1px solid var(--liquid-border,rgba(255,255,255,.35));
+    color:#000;
+  }
+
+  /* Mobile: stack portrait above text */
+  @media (max-width:640px){
+    #pane-team .member{ grid-template-columns: 1fr; }
+    #pane-team .portrait{ width:100%; height:auto; aspect-ratio:1/1; }
+  }
+
+  /* Modal (ultra-light, transform/opacity only) */
+  #dex-about .dex-modal[hidden]{ display:none !important; }
+  #dex-about .dex-modal{
+    position:fixed; inset:0; display:grid; place-items:center; z-index:50;
+    background: rgba(0,0,0,.22);
+    will-change: opacity;
+    animation: tm-fade .12s ease both; /* a touch faster */
+  }
+  #dex-about .dex-modal-content{
+    width:min(700px,92vw); max-height:80vh; overflow:auto;
+    background: rgba(255,255,255,.92);
+    border:1px solid rgba(255,255,255,.35); border-radius:6px;
+    padding:16px; box-shadow: 0 16px 40px rgba(0,0,0,.22);
+    transform: translateY(4px); opacity:0; will-change: opacity, transform;
+    animation: tm-pop .12s cubic-bezier(.2,.7,.2,1) .02s both;
+    outline:none;
+  }
+  #dex-about .dex-modal-content h4{
+    margin:0 0 6px;
+    font-family: var(--font-heading,'Typefesse',sans-serif); text-transform:uppercase; letter-spacing:0;
+    font-size: clamp(14px,1.3vw,18px);
+  }
+  /* hard-stop any theme transforms without altering look */
+  #pane-team .member:hover,
+  #pane-team .links a:hover,
+  #pane-team .links button:hover{ transform:none !important; }
+  #dex-about .dex-modal-content p{ margin:0; font-size: clamp(13px,1.1vw,14.5px); line-height:1.5; }
+  #dex-about #teamModalClose{ margin-top:12px; }
+  @keyframes tm-fade{ from{ opacity:0; } to{ opacity:1; } }
+  @keyframes tm-pop { from{ opacity:0; transform:translateY(6px); } to{ opacity:1; transform:none; } }
+
+
+  /* BODY CARD + FOOTLINE: force black text */
+#dex-about .stage .glass,
+#dex-about .stage .glass .inner,
+#dex-about .stage .footline {
+  color: #000 !important;
+}
+
+/* Make every text element inside inherit that black (overrides theme whites) */
+#dex-about .stage .glass .inner *,
+#dex-about .stage .footline * {
+  color: inherit !important;
+}
+
+/* Links inside cards inherit black instead of theme link color */
+#dex-about .stage .glass a {
+  color: inherit !important;
+  text-decoration-color: currentColor;
+}
+/* Header tagline: "A nonprofit, open-access…" -> black */
+#dex-about header.headcard .lead {
+  color: #000 !important;
+}
+
+/* Keep primary CTA buttons white on their gradient */
+#dex-about .stage .glass .links .dx-button-element--primary {
+  color: #fff !important;
+}
+
+  </style>
+
+
+      <div class="glass dex-sidebar">
+        <div class="inner" role="region" aria-labelledby="p1-team">
+  <h2 class="p1" id="p1-team">Team & Governance</h2>
+  <p>Dex is led by a compact team focused on quality capture, clear rights, and practical reuse. We ship deliberately and keep the catalog public-first.</p>
+
+  <div class="roster">
+  <!-- Member 1 -->
+  <article class="member" data-slug="ssuarez">
+    <img class="portrait" loading="lazy" decoding="async"
+         src="/assets/img/2319bdb331c97527f23f.jpg"
+         alt="S. Suarez-Solis — Co-Founder & Artistic Director at Dex" />
+    <div class="meta">
+      <h3 class="name">S. SUAREZ-SOLIS</h3>
+      <p class="title">Co-Founder · Artistic Director · Productions, Programs & Partnerships</p>
+      <p class="bio">Leads mission, programs, and partnerships. Sets commons-forward strategy and stewards collaborations across arts, education, and civic orgs.</p>
+      <div class="links">
+        <button class="dx-button-element--primary bio-btn" data-bio="ssuarez">Read Bio</button>
+        <a class="dx-button-element--secondary" href="mailto:seb@dexdsl.org">Email</a>
+        <a class="dx-button-element--secondary" href="https://www.cbassuarez.bandcamp.com" target="_blank" rel="noopener">Website</a>
+      </div>
+    </div>
+  </article>
+
+  <!-- Member 2 -->
+  <article class="member" data-slug="cchurch">
+    <img class="portrait" loading="lazy" decoding="async"
+         src="/assets/img/8777ddc189323d789f1c.jpg"
+         alt="C. Church — Co-Founder & Director of Communications" />
+    <div class="meta">
+      <h3 class="name">C. CHURCH</h3>
+      <p class="title">Co-Founder · Director of Communications · Productions, Programs & Partnerships</p>
+      <p class="bio">Designs session formats and camera plans that travel to editorial and classroom contexts. Trains capture crews; maintains image standards.</p>
+      <div class="links">
+        <button class="dx-button-element--primary bio-btn" data-bio="cchurch">Read Bio</button>
+        <a class="dx-button-element--secondary" href="mailto:cameron@dexdsl.org">Email</a>
+        <a class="dx-button-element--secondary" href="cameronchurch.com" target="_blank" rel="noopener">Website</a>
+      </div>
+    </div>
+  </article>
+
+  <!-- Member 3 -->
+  <article class="member" data-slug="tjordan">
+    <img class="portrait" loading="lazy" decoding="async"
+         src="/assets/img/15e1054490df27af1ca2.jpg"
+         alt="T. Jordan — Treasurer at dex" />
+    <div class="meta">
+      <h3 class="name">T. JORDAN</h3>
+      <p class="title">Co-Founder · Treasurer</p>
+      <p class="bio">Implements CC BY 4.0 across releases and agreements. Builds plain-language guidance so reuse is legal, clear, and fast.</p>
+      <div class="links">
+        <button class="dx-button-element--primary bio-btn" data-bio="tjordan">Read Bio</button>
+        <a class="dx-button-element--secondary" href="mailto:tyler@dexdsl.com">Email</a>
+        <a class="dx-button-element--secondary" href="https://www.tylerjordancomposer.com" target="_blank" rel="noopener">Website</a>
+      </div>
+    </div>
+  </article>
+</div>
+
+
+</div>
+</div>
+      <div class="bottom-ctas">
+        <a href="/call/" class="dx-button-element dx-button-size--md dx-button-element--secondary">See Opportunities</a>
+        <a href="#contact" class="dx-button-element dx-button-size--md dx-button-element--primary" data-goto="contact">Contact the Team</a>
+      </div>
+
+      <!-- Bio modal (ultra-light) -->
+<div class="dex-modal" id="teamModal" hidden>
+  <div class="dex-modal-content" role="dialog" aria-modal="true" aria-labelledby="teamModalTitle" tabindex="-1">
+    <h4 id="teamModalTitle">—</h4>
+    <p id="teamModalBody">—</p>
+    <button class="dx-button-element--secondary" id="teamModalClose">Close</button>
+  </div>
+  
+</div>
+
+    </section>
+  <!-- <p> <b> Board & Advisors. </b> An independent board oversees mission and finance; advisors contribute domain expertise across rights, education, and technology. </p> -->
+
+    <!-- PARTNERS -->
+    <section id="pane-partners" class="pane" aria-hidden="true">
+      <div class="glass dex-sidebar">
+        <div class="inner">
+          <h2 class="p1">Partners & COLLABORATORS</h2>
+          <p>We work with ensembles, presenters, labels, archives, schools, and civic institutions that share our commitment to open culture.</p>
+          <ul>
+            <li>Co-commission a session for public release under CC BY 4.0.</li>
+            <li>Host a recording day; we handle production and licensing.</li>
+            <li>Contribute catalog materials with clear rights and metadata.</li>
+            <li>Pilot education modules using Dex materials in class.</li>
+            <li>Support a themed series through funding or in-kind services.</li>
+          </ul>
+          <!-- <p><em>“Dex made open culture feel practical: strong documentation, clear licenses, and artists paid.” — [Name], [Org]</em></p> -->
+        </div>
+      </div>
+      <div class="footline dex-sidebar">Plain-language agreements · Realistic timelines · Rights clarity</div>
+      <div class="bottom-ctas">
+<a
+  href="https://drive.google.com/uc?export=download&id=1D1CVW6H6cbEeIclXLdEqFjUdaLdjQdfK"
+  class="dx-button-element dx-button-size--md dx-button-element--secondary"
+  target="_blank"
+  rel="noreferrer noopener"
+  referrerpolicy="no-referrer"
+>
+  Download One-Pager
+</a>
+        <a href="#contact" class="dx-button-element dx-button-size--md dx-button-element--primary" data-goto="contact">Propose a Project</a>
+      </div>
+    </section>
+
+    <!-- PRESS -->
+    <section id="pane-press" class="pane" aria-hidden="true">
+      <div class="glass dex-sidebar">
+        <div class="inner">
+          <h2 class="p1">PRESS & Media</h2>
+          <p><b>Boilerplate.</b> Dex Digital Sample Library is a nonprofit, open-access catalog of artist-made audio-visual materials, licensed under Creative Commons Attribution 4.0 for legal reuse.</p>
+          <ul>
+            <li>Founded: 2021 · Public launch: Apr 2022</li>
+            <li>Nonprofit status: 501(c)(3)</li>
+            <li>Default license: CC BY 4.0</li>
+            <li>Catalog: 30+ works / 30+ hours</li>
+            <li>Artists commissioned: 24+</li>
+            <li>Media contact: <a href="mailto:press@dexdsl.org">press@dexdsl.org</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footline dex-sidebar">Assets · Logos · Stills · Bios · Boilerplate</div>
+      <div class="bottom-ctas">
+        <a href="/press/" class="dx-button-element dx-button-size--md dx-button-element--secondary">PRESS Page</a>
+        <a
+  href="https://drive.google.com/file/d/1EKNXT-qInKd1nEJ2bd4hZ8zzfxDkY1iw"
+  class="dx-button-element dx-button-size--md dx-button-element--primary"
+  target="_blank"
+  rel="noreferrer noopener"
+  referrerpolicy="no-referrer"
+>
+  Download Press Kit
+</a>
+      </div>
+    </section>
+
+    <!-- CONTACT -->
+    <section id="pane-contact" class="pane" aria-hidden="true">
+      <div class="glass dex-sidebar">
+        <div class="inner">
+          <h2 class="p1">Contact</h2>
+          <p>We’re a small team and read every message. For general questions, proposals, or rights inquiries, use the form or email us.</p>
+          <ul>
+            <li><b>General:</b> <a href="mailto:info@dexdsl.org">info@dexdsl.org</a></li>
+            <li><b>Partnerships / Programs:</b> <a href="mailto:info@dexdsl.org">info@dexdsl.org</a></li>
+            <li><b>Media / Press:</b> <a href="mailto:press@dexds.org">press@dexdsl.org</a></li>
+            <li><b>Rights / Takedown:</b> <a href="mailto:legal@dexdsl.org">legal@dexdsl.org</a></li>
+            <li><b>Opportunities:</b> <a href="mailto:info@dexdsl.org">info@dexdsl.org</a></li>
+          </ul>
+          <p><em>We aim to reply within 3–5 business days; complex rights questions may take longer.</em></p>
+        </div>
+      </div>
+      <div class="footline dex-sidebar">Accessible formats available on request</div>
+      <div class="bottom-ctas">
+        <a href="/contact/" class="dx-button-element dx-button-size--md dx-button-element--secondary">Open Contact Page</a>
+        <a href="/contact#form" class="dx-button-element dx-button-size--md dx-button-element--primary">Open Contact Form</a>
+      </div>
+    </section>
+
+    <!-- LICENSE -->
+    <section id="pane-license" class="pane" aria-hidden="true">
+      <div class="glass dex-sidebar">
+        <div class="inner">
+          <h2 class="p1">License & ATTRIBUTION</h2>
+          <p><b>Except where noted, Dex content is licensed under Creative Commons Attribution 4.0 International (CC BY 4.0).</b></p>
+          <p>CC BY 4.0 lets you reuse Dex materials—copy, share, remix, adapt, and release, including commercially—with proper attribution. Credit the artist(s) and Dex, link to the source page when possible, and indicate changes.</p>
+          <ul>
+            <li><b>Short (video description):</b> “Source: ‘[Work Title]’ by [Artist], Dex Digital Sample Library (CC BY 4.0). Edits by [You]. [URL]”</li>
+            <li><b>Liner notes / academic:</b> “[Artist], ‘[Work Title]’. Dex Digital Sample Library, CC BY 4.0, [URL]. Adapted by [You], [changes].”</li>
+          </ul>
+          <p><em>Dex name and logo are trademarks of Dex Digital Sample Library and are not covered by CC BY. Partner logos, wordmarks, or any other identifiable marks, where presented, are not covered under CC-BY licensure, and are the property of their respective rightsholders.</em></p>
+        </div>
+      </div>
+      <div class="footline dex-sidebar">Clear rights · Practical reuse · Attribution examples</div>
+      <div class="bottom-ctas">
+        <a href="/copyright/" class="dx-button-element dx-button-size--md dx-button-element--secondary">Copyright & Policies</a>
+        <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener" class="dx-button-element dx-button-size--md dx-button-element--primary">Read CC BY 4.0 DEED</a>
+      </div>
+    </section>
+  </main>
+    <h1></h1>
+
+  <script>
+    /* ─────────────────────────────────────────────────────────
+       Router: hash-driven panes; arrows; pinned CTAs; fit height
+       + Team filters/grid/deeplinks/modal
+       ───────────────────────────────────────────────────────── */
+    (function(){
+      const $ = (s, r=document)=> r.querySelector(s);
+      const tabs  = [...document.querySelectorAll('#dex-about .pill')];
+      const panes = {
+        mission:  $('#pane-mission'),
+        work:     $('#pane-work'),
+        impact:   $('#pane-impact'),
+        team:     $('#pane-team'),
+        partners: $('#pane-partners'),
+        press:    $('#pane-press'),
+        contact:  $('#pane-contact'),
+        license:  $('#pane-license')
+      };
+      const order = Object.keys(panes);
+      let current = 'mission';
+
+      function selectTab(name){
+        tabs.forEach(b => b.setAttribute('aria-selected', b.dataset.pane === name ? 'true' : 'false'));
+      }
+      function showPane(name, push=true){
+        if (!panes[name] || name === current) return;
+        [panes[current], panes[name]].forEach(p=>p?.getAnimations?.().forEach(a=>a.cancel()));
+        panes[current].setAttribute('aria-hidden','true');
+        panes[name].setAttribute('aria-hidden','false');
+        selectTab(name);
+        current = name;
+        if (push) history.replaceState(null, '', '#'+name);
+      }
+
+      /* tab clicks */
+      tabs.forEach(b => b.addEventListener('click', ()=> showPane(b.dataset.pane)));
+
+      /* arrows */
+      const prev = $('#aboutPrev'), next = $('#aboutNext');
+      function step(dir){
+        const i = order.indexOf(current);
+        const j = (i + (dir<0?-1:1) + order.length) % order.length;
+        showPane(order[j]);
+      }
+      prev.addEventListener('click', ()=> step(-1));
+      next.addEventListener('click', ()=> step(1));
+
+      /* CTA deep links */
+      document.querySelectorAll('#dex-about [data-goto]').forEach(a=>{
+        a.addEventListener('click', e=>{ e.preventDefault(); showPane(a.getAttribute('data-goto')); });
+      });
+
+      /* hash routing (supports #team and #team:slug) */
+      const valid = new Set(order.map(x=> '#'+x));
+      function route(){
+  const h = location.hash || '#mission';
+  showPane(valid.has(h) ? h.slice(1) : 'mission', false);
+}
+
+      window.addEventListener('hashchange', route, { passive:true });
+      route();
+      
+      /* Team: ultra-light modal for full bios (no heavy anims) */
+const TEAM_BIOS = {
+  ssuarez: "S. Suarez-Solis leads Dex’s strategy and partnerships, aligning programs with a commons-forward mission and building durable collaborations across arts, education, and civic orgs.",
+  cchurch:   "C. Church directs Dex’s cinematic capture and editorial pipeline, designing session formats that travel to editorial and classroom use while training capture teams.",
+  tjordan:  "T. Jordan stewards Creative Commons practice across Dex, implementing CC BY 4.0 in releases and agreements and authoring plain-language guidance for legal reuse."
+};
+const teamModal  = document.getElementById('teamModal');
+const modalTitle = document.getElementById('teamModalTitle');
+const modalBody  = document.getElementById('teamModalBody');
+const modalClose = document.getElementById('teamModalClose');
+
+function openBio(slug){
+  const card = document.querySelector(`#pane-team .member[data-slug="${slug}"]`);
+  if (!card) return;
+  if (current !== 'team') showPane('team');
+  modalTitle.textContent = card.querySelector('.name')?.textContent || 'Bio';
+  modalBody.textContent  = TEAM_BIOS[slug] || '—';
+  teamModal.hidden = false;
+  teamModal.querySelector('.dex-modal-content')?.focus();
+}
+function closeBio(){ teamModal.hidden = true; }
+
+document.addEventListener('click', (e)=>{
+  const btn = e.target.closest('.bio-btn');
+  if (btn){ e.preventDefault(); openBio(btn.dataset.bio); }
+  if (e.target?.id === 'teamModalClose' || e.target === teamModal) closeBio();
+});
+document.addEventListener('keydown', (e)=>{ if (e.key === 'Escape' && !teamModal.hidden) closeBio(); });
+
+
+      /* viewport fit: compute available height so the page can stay locked */
+      const root = document.getElementById('dex-about');
+      function fit(){
+        const vv = (window.visualViewport && window.visualViewport.height) || window.innerHeight;
+        const top = root.getBoundingClientRect().top + (window.scrollY||0);
+        const h = Math.max(360, Math.floor(vv - top - 4));
+        root.style.setProperty('--about-h', h + 'px');
+      }
+      fit();
+      addEventListener('resize', fit, { passive:true });
+
+      
+
+    })();
+  </script>
+</section>
