@@ -1,14 +1,14 @@
 /*
- * Desktop font faces. Mirrors the site's css/fonts.css but points at the site
- * repo's font binaries through the Vite "@site" alias (the site sheet uses
- * absolute /assets paths that don't resolve inside the Tauri app).
+ * Desktop font faces. The font binaries are vendored into this repo
+ * (src/fonts/) so the build is self-contained and works on CI / any machine —
+ * it must NOT depend on the sibling site repo being checked out next to it.
  */
 
 @font-face {
   font-family: "Courier Prime";
   src:
-    url("@site/assets/fonts/courier-prime/CourierPrime-Regular.woff2") format("woff2"),
-    url("@site/assets/fonts/courier-prime/CourierPrime-Regular.woff") format("woff");
+    url("../fonts/CourierPrime-Regular.woff2") format("woff2"),
+    url("../fonts/CourierPrime-Regular.woff") format("woff");
   font-style: normal;
   font-weight: 400;
   font-display: swap;
@@ -17,8 +17,8 @@
 @font-face {
   font-family: "Courier Prime";
   src:
-    url("@site/assets/fonts/courier-prime/CourierPrime-Bold.woff2") format("woff2"),
-    url("@site/assets/fonts/courier-prime/CourierPrime-Bold.woff") format("woff");
+    url("../fonts/CourierPrime-Bold.woff2") format("woff2"),
+    url("../fonts/CourierPrime-Bold.woff") format("woff");
   font-style: normal;
   font-weight: 700;
   font-display: swap;
@@ -27,8 +27,8 @@
 @font-face {
   font-family: "Courier Prime";
   src:
-    url("@site/assets/fonts/courier-prime/CourierPrime-Italic.woff2") format("woff2"),
-    url("@site/assets/fonts/courier-prime/CourierPrime-Italic.woff") format("woff");
+    url("../fonts/CourierPrime-Italic.woff2") format("woff2"),
+    url("../fonts/CourierPrime-Italic.woff") format("woff");
   font-style: italic;
   font-weight: 400;
   font-display: swap;
@@ -36,7 +36,7 @@
 
 @font-face {
   font-family: "Stretch Pro";
-  src: url("@site/assets/fonts/StretchPro.otf") format("opentype");
+  src: url("../fonts/StretchPro.otf") format("opentype");
   font-style: normal;
   font-weight: 400;
   font-display: swap;

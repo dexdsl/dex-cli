@@ -7,7 +7,7 @@
  * matches the site without inheriting its page-specific global element styles.
  */
 
-@import "@site/css/tokens.css";
+@import "./tokens.css";
 
 :root {
   /* Brand accent (site: rgb(255 25 16) -> rgb(255 106 0)) */
