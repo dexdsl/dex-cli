@@ -1,0 +1,40 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Dex Ops Studio",
+  "version": "0.1.0",
+  "identifier": "io.github.cbassuarez.dex-ops-studio",
+  "build": {
+    "frontendDist": "../desktop/dist",
+    "devUrl": "http://localhost:1430",
+    "beforeDevCommand": "npm --prefix desktop run dev -- --host 127.0.0.1 --port 1430 --strictPort",
+    "beforeBuildCommand": "npm --prefix desktop run build"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "Dex Ops Studio",
+        "width": 1320,
+        "height": 860,
+        "minWidth": 980,
+        "minHeight": 680
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "resources": [
+      "../README.md",
+      "../package.json",
+      "../scripts",
+      "../assets"
+    ],
+    "macOS": {
+      "signingIdentity": "-"
+    }
+  }
+}

@@ -1,0 +1,49 @@
+{
+  "name": "dex-cli",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Dex staff operations CLI, TUI, and Tauri desktop shell.",
+  "bin": {
+    "dex": "scripts/dex.mjs"
+  },
+  "scripts": {
+    "dex": "node scripts/dex.mjs",
+    "gui:registry": "node scripts/dex-gui-bridge.mjs registry",
+    "gui:workspace": "node scripts/dex-gui-bridge.mjs workspace",
+    "desktop:dev": "npm --prefix desktop run dev",
+    "desktop:build": "npm --prefix desktop run build",
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build --bundles app",
+    "tauri:bundle:dmg": "tauri build --bundles dmg",
+    "test:command-registry": "node scripts/test-dex-command-registry.mjs",
+    "test:gui-bridge": "node scripts/test-dex-gui-bridge.mjs",
+    "test:gui": "npm run test:command-registry && npm run test:gui-bridge"
+  },
+  "dependencies": {
+    "@auth0/auth0-spa-js": "^2.16.0",
+    "@fontsource/courier-prime": "^5.2.8",
+    "@react-email/components": "^0.5.7",
+    "chalk": "^5.6.2",
+    "cheerio": "^1.0.0",
+    "cli-cursor": "^5.0.0",
+    "commander": "^12.1.0",
+    "flubber": "0.4.2",
+    "framer-motion": "12.23.24",
+    "fuse.js": "^7.1.0",
+    "ink": "^6.8.0",
+    "kuva": "0.0.4",
+    "prompts": "^2.4.2",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "xlsx": "^0.18.5",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.11.2",
+    "esbuild": "^0.25.10",
+    "parse5": "^7.3.0",
+    "playwright": "^1.58.2"
+  }
+}
