@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Plus } from "lucide-react";
-import { rpc, payloadOf } from "../api";
+import { rpc, payloadOf, pickImageFile } from "../api";
 import { useStore } from "../store";
 import { useGuardSource } from "../guard";
 import { DexLoader } from "../components/DexLoader";
@@ -123,6 +123,9 @@ function EntryEditor({ slug, onBack }: { slug: string; onBack: () => void }) {
   const [bucketFolderInput, setBucketFolderInput] = useState("");
   const [scanning, setScanning] = useState(false);
   const [scanResult, setScanResult] = useState<{ count: number; totalBytes: number; humanSize?: string; folderId: string; files?: Array<{ name: string; size: number }> } | null>(null);
+  // Catalog artwork (image_src) — managed in the repo, populated when present.
+  const [imageSrc, setImageSrc] = useState("");
+  const [settingImage, setSettingImage] = useState(false);
 
   useEffect(() => {
     rpc<EntryFolder>("entry.read", { slug })
@@ -134,7 +137,25 @@ function EntryEditor({ slug, onBack }: { slug: string; onBack: () => void }) {
         setBaseline({ entry: JSON.stringify(normalized), description: data.descriptionText || "" });
       })
       .catch((error) => notify("err", String(error)));
+    rpc<{ image_src?: string }>("entry.image.get", { token: slug })
+      .then((r) => setImageSrc(r?.image_src || ""))
+      .catch(() => {});
   }, [slug, notify]);
+
+  async function chooseEntryImage() {
+    const file = await pickImageFile();
+    if (!file) return;
+    setSettingImage(true);
+    try {
+      const r = await rpc<{ image_src?: string }>("entry.image.set", { token: slug, sourcePath: file });
+      setImageSrc(r?.image_src || "");
+      notify("ok", "Entry image saved to the repo and catalog rebuilt.");
+    } catch (error) {
+      notify("err", String(error));
+    } finally {
+      setSettingImage(false);
+    }
+  }
 
   const dirty = baseline !== null && entry !== null
     && (JSON.stringify(entry) !== baseline.entry || description !== baseline.description);
@@ -357,6 +378,23 @@ function EntryEditor({ slug, onBack }: { slug: string; onBack: () => void }) {
         <div className="field">
           <label>Title</label>
           <input value={entry.title || ""} onChange={(e) => update((d) => (d.title = e.target.value))} />
+        </div>
+        <div className="field">
+          <label>Catalog image</label>
+          <div className="inline">
+            {imageSrc ? (
+              <code style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{imageSrc}</code>
+            ) : (
+              <span className="muted" style={{ flex: 1 }}>No image — carousel uses the fallback</span>
+            )}
+            <button className="btn btn-sm" type="button" disabled={settingImage} onClick={chooseEntryImage}>
+              {settingImage ? "Saving…" : imageSrc ? "Replace image…" : "Choose image…"}
+            </button>
+          </div>
+          <div className="field-hint">
+            Copied into the repo (<code>/assets/catalog/</code>) and set as <code>image_src</code>; the catalog
+            rebuilds. Shown when present so you don't overwrite by accident.
+          </div>
         </div>
         <div className="field">
           <label>Description</label>

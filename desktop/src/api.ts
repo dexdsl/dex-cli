@@ -111,6 +111,17 @@ export async function pickSiteDirectory(): Promise<string | null> {
   return typeof result === "string" ? result : null;
 }
 
+export async function pickImageFile(): Promise<string | null> {
+  const { open } = await import("@tauri-apps/plugin-dialog");
+  const result = await open({
+    directory: false,
+    multiple: false,
+    title: "Choose entry image",
+    filters: [{ name: "Images", extensions: ["png", "jpg", "jpeg", "webp", "gif", "avif"] }],
+  });
+  return typeof result === "string" ? result : null;
+}
+
 /* ----------------------------------------------- legacy raw-command path - */
 // Retained as an "advanced / raw command" escape hatch for ops without a
 // dedicated screen. Uses the original streaming bridge.

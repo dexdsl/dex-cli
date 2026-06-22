@@ -1,6 +1,6 @@
 [package]
 name = "dex-ops-studio"
-version = "0.1.2"
+version = "0.1.3"
 edition = "2021"
 description = "Dex Ops Studio desktop shell"
 

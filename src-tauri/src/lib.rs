@@ -6,6 +6,7 @@ use std::io::{BufRead, BufReader, Read, Write};
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::sync::Mutex;
+use std::sync::OnceLock;
 use std::thread;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem, Submenu};
@@ -34,8 +35,65 @@ struct RunStart {
     run_id: String,
 }
 
+// Resolve a usable `node` binary. Finder-launched apps inherit a minimal PATH
+// (/usr/bin:/bin:/usr/sbin:/sbin) that usually lacks Homebrew/nvm node, which
+// would make every bridge call fail and brick the app. Search the common install
+// locations and, as a last resort, ask the user's login shell.
+fn resolve_node_bin() -> String {
+    if let Ok(explicit) = env::var("DEX_NODE_BIN") {
+        if !explicit.trim().is_empty() {
+            return explicit;
+        }
+    }
+
+    let mut candidates: Vec<PathBuf> = vec![
+        PathBuf::from("/opt/homebrew/bin/node"),
+        PathBuf::from("/usr/local/bin/node"),
+        PathBuf::from("/usr/bin/node"),
+    ];
+
+    if let Ok(home) = env::var("HOME") {
+        candidates.push(PathBuf::from(format!("{home}/.volta/bin/node")));
+        candidates.push(PathBuf::from(format!("{home}/.fnm/aliases/default/bin/node")));
+        // nvm: pick the newest installed version.
+        let nvm = PathBuf::from(format!("{home}/.nvm/versions/node"));
+        if let Ok(entries) = std::fs::read_dir(&nvm) {
+            let mut versions: Vec<PathBuf> = entries
+                .flatten()
+                .map(|entry| entry.path().join("bin/node"))
+                .filter(|path| path.exists())
+                .collect();
+            versions.sort();
+            if let Some(latest) = versions.pop() {
+                candidates.push(latest);
+            }
+        }
+    }
+
+    for candidate in &candidates {
+        if candidate.exists() {
+            return candidate.to_string_lossy().into_owned();
+        }
+    }
+
+    // Last resort: a login shell sources the user's PATH (Homebrew/nvm/etc.).
+    let shell = env::var("SHELL").unwrap_or_else(|_| "/bin/zsh".to_string());
+    if let Ok(output) = Command::new(&shell)
+        .args(["-lc", "command -v node"])
+        .output()
+    {
+        let found = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        if !found.is_empty() && PathBuf::from(&found).exists() {
+            return found;
+        }
+    }
+
+    "node".to_string()
+}
+
 fn node_bin() -> String {
-    env::var("DEX_NODE_BIN").unwrap_or_else(|_| "node".to_string())
+    static CACHE: OnceLock<String> = OnceLock::new();
+    CACHE.get_or_init(resolve_node_bin).clone()
 }
 
 fn repo_root_from_manifest() -> PathBuf {

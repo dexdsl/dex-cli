@@ -188,6 +188,34 @@ const handlers = {
     return { dryRun: false, diff, wroteFiles };
   },
 
+  // entry.image.get — current image_src for an entry (editorial override first),
+  // so the ops UI pre-populates without overwriting.
+  'entry.image.get': async (args = {}) => {
+    const root = await siteRoot();
+    return (await lib('catalog-entry-image.mjs')).getEntryImage({
+      siteRoot: root,
+      token: args.token || args.slug,
+    });
+  },
+
+  // entry.image.set — copy a local image into the repo as the entry's artwork,
+  // record the editorial override, and regenerate catalog data so the carousel
+  // reflects it. { token|slug, sourcePath }.
+  'entry.image.set': async (args = {}) => {
+    const root = await siteRoot();
+    const mod = await lib('catalog-entry-image.mjs');
+    const result = await mod.setEntryImage({
+      siteRoot: root,
+      token: args.token || args.slug,
+      sourcePath: args.sourcePath,
+    });
+    // Regenerate catalog data (extract reads the editorial override) + mirror it.
+    const opts = { cwd: root, maxBuffer: 64 * 1024 * 1024 };
+    await execFileAsync(process.execPath, ['scripts/extract_catalog_data.mjs'], opts);
+    await execFileAsync(process.execPath, ['scripts/sync_runtime_css.mjs'], opts);
+    return result;
+  },
+
   // entry.publish — FULL pipeline (writeEntryFromData): writes the folder AND
   // syncs catalog linkage + protected-asset mappings. Use for an authoritative
   // republish of an existing entry. Compose data from the edited folder.
