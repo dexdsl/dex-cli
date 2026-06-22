@@ -96,14 +96,17 @@ fn dex_rpc(app: AppHandle, request: RpcRequest) -> Result<Value, String> {
         "secrets": request.secrets,
     });
 
-    let mut child = Command::new(node_bin())
+    let mut command = Command::new(node_bin());
+    command
         .arg(rpc_bridge_path(&app))
         .current_dir(root)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .map_err(|error| error.to_string())?;
+        .stderr(Stdio::piped());
+    if let Some(site) = stored_site_root(&app) {
+        command.env("DEX_SITE_ROOT", site);
+    }
+    let mut child = command.spawn().map_err(|error| error.to_string())?;
 
     child
         .stdin
@@ -139,12 +142,12 @@ fn dex_rpc(app: AppHandle, request: RpcRequest) -> Result<Value, String> {
 
 fn run_bridge_json(app: &AppHandle, args: &[String]) -> Result<Value, String> {
     let root = app_root(app);
-    let output = Command::new(node_bin())
-        .arg(bridge_path(app))
-        .args(args)
-        .current_dir(root)
-        .output()
-        .map_err(|error| error.to_string())?;
+    let mut command = Command::new(node_bin());
+    command.arg(bridge_path(app)).args(args).current_dir(root);
+    if let Some(site) = stored_site_root(app) {
+        command.env("DEX_SITE_ROOT", site);
+    }
+    let output = command.output().map_err(|error| error.to_string())?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
@@ -338,6 +341,49 @@ fn dex_secret_get(key: String) -> Result<Option<String>, String> {
     }
 }
 
+// User-selected site repo directory (ground truth). Persisted to the app config
+// dir and passed to the bridge as DEX_SITE_ROOT so a missing auto-scan never
+// bricks functionality — the operator just points the app at the repo.
+fn site_root_file(app: &AppHandle) -> Option<PathBuf> {
+    app.path()
+        .app_config_dir()
+        .ok()
+        .map(|dir| dir.join("site_root.txt"))
+}
+
+fn stored_site_root(app: &AppHandle) -> Option<String> {
+    let path = site_root_file(app)?;
+    let content = std::fs::read_to_string(path).ok()?;
+    let trimmed = content.trim().to_string();
+    if trimmed.is_empty() {
+        None
+    } else {
+        Some(trimmed)
+    }
+}
+
+#[tauri::command]
+fn dex_set_site_root(app: AppHandle, path: String) -> Result<(), String> {
+    let file = site_root_file(&app).ok_or_else(|| "config directory unavailable".to_string())?;
+    if let Some(parent) = file.parent() {
+        std::fs::create_dir_all(parent).map_err(|error| error.to_string())?;
+    }
+    let trimmed = path.trim();
+    if trimmed.is_empty() {
+        let _ = std::fs::remove_file(&file);
+        return Ok(());
+    }
+    if !PathBuf::from(trimmed).is_dir() {
+        return Err(format!("Not a directory: {trimmed}"));
+    }
+    std::fs::write(&file, trimmed).map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+fn dex_get_site_root(app: AppHandle) -> Result<Option<String>, String> {
+    Ok(stored_site_root(&app))
+}
+
 fn build_menu<R: Runtime>(handle: &AppHandle<R>) -> tauri::Result<Menu<R>> {
     let app_menu = Submenu::with_items(
         handle,
@@ -398,6 +444,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         .manage(DexProcessState::default())
         .menu(|handle| build_menu(handle))
         .on_menu_event(|app, event| {
@@ -415,6 +462,8 @@ pub fn run() {
             dex_rpc,
             dex_secret_set,
             dex_secret_get,
+            dex_set_site_root,
+            dex_get_site_root,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Dex Ops Studio");

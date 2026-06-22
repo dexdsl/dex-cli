@@ -94,6 +94,23 @@ export async function workspaceInfo(): Promise<{ siteRoot: string; apiBase: stri
   return rpc("workspace.info");
 }
 
+/* --------------------------------------------------- site repo linkage - */
+// The operator can point the app at the site repo directory; it's persisted and
+// passed to the bridge as DEX_SITE_ROOT so a failed auto-scan never bricks ops.
+export async function getStoredSiteRoot(): Promise<string | null> {
+  return invoke("dex_get_site_root");
+}
+
+export async function setStoredSiteRoot(path: string): Promise<void> {
+  await invoke("dex_set_site_root", { path });
+}
+
+export async function pickSiteDirectory(): Promise<string | null> {
+  const { open } = await import("@tauri-apps/plugin-dialog");
+  const result = await open({ directory: true, multiple: false, title: "Select the site repo (dexdsl.github.io)" });
+  return typeof result === "string" ? result : null;
+}
+
 /* ----------------------------------------------- legacy raw-command path - */
 // Retained as an "advanced / raw command" escape hatch for ops without a
 // dedicated screen. Uses the original streaming bridge.

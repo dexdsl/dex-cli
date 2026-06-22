@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { SECRET_KEYS, type SecretKey, saveSecret, loadSecrets, workspaceInfo } from "../api";
+import { SECRET_KEYS, type SecretKey, saveSecret, loadSecrets, workspaceInfo, getStoredSiteRoot, setStoredSiteRoot, pickSiteDirectory } from "../api";
 import { useStore } from "../store";
 
 const LABELS: Record<SecretKey, string> = {
@@ -14,6 +14,19 @@ export function SettingsScreen() {
   const [present, setPresent] = useState<Record<string, boolean>>({});
   const [apiBase, setApiBase] = useState("");
   const [saving, setSaving] = useState<string | null>(null);
+  const [siteRootInput, setSiteRootInput] = useState("");
+  const [linkingSite, setLinkingSite] = useState(false);
+
+  async function refreshWorkspace() {
+    try {
+      const info = await workspaceInfo();
+      setSiteRoot(info.siteRoot);
+      setApiBase(info.apiBase);
+    } catch (error) {
+      setSiteRoot("");
+      notify("err", String(error));
+    }
+  }
 
   useEffect(() => {
     loadSecrets().then((secrets) => {
@@ -21,13 +34,35 @@ export function SettingsScreen() {
       for (const key of SECRET_KEYS) flags[key] = Boolean(secrets[key]);
       setPresent(flags);
     });
-    workspaceInfo()
-      .then((info) => {
-        setSiteRoot(info.siteRoot);
-        setApiBase(info.apiBase);
-      })
-      .catch((error) => notify("err", String(error)));
+    getStoredSiteRoot()
+      .then((stored) => setSiteRootInput(stored || ""))
+      .catch(() => {});
+    refreshWorkspace();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [notify, setSiteRoot]);
+
+  async function linkSiteRoot(path: string) {
+    setLinkingSite(true);
+    try {
+      await setStoredSiteRoot(path.trim());
+      setSiteRootInput(path.trim());
+      await refreshWorkspace();
+      notify("ok", path.trim() ? "Site repo linked." : "Site repo cleared.");
+    } catch (error) {
+      notify("err", String(error));
+    } finally {
+      setLinkingSite(false);
+    }
+  }
+
+  async function browseSiteRoot() {
+    try {
+      const picked = await pickSiteDirectory();
+      if (picked) await linkSiteRoot(picked);
+    } catch (error) {
+      notify("err", String(error));
+    }
+  }
 
   async function save(key: SecretKey) {
     setSaving(key);
@@ -49,9 +84,21 @@ export function SettingsScreen() {
         <div className="panel-title">Workspace</div>
         <div className="field">
           <label>Site repo (ground truth)</label>
-          <input readOnly value={siteRoot || "resolving…"} />
+          <div className="inline">
+            <input
+              value={siteRootInput}
+              onChange={(e) => setSiteRootInput(e.target.value)}
+              placeholder="/path/to/dexdsl.github.io"
+              style={{ flex: 1 }}
+            />
+            <button className="btn btn-sm" type="button" disabled={linkingSite} onClick={browseSiteRoot}>Browse…</button>
+            <button className="btn btn-sm btn-primary" type="button" disabled={linkingSite} onClick={() => linkSiteRoot(siteRootInput)}>
+              {linkingSite ? "Linking…" : "Link"}
+            </button>
+          </div>
           <div className="field-hint">
-            Resolved from ~/.config/dexdsl/workspaces.json. Override with DEX_SITE_ROOT.
+            Resolved: <code>{siteRoot || "not linked"}</code>. Pick the local clone of the site repo —
+            it's saved and passed to the bridge so a failed auto-scan never bricks ops.
           </div>
         </div>
         <div className="field">

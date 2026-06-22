@@ -1,6 +1,6 @@
 {
   "name": "dex-cli",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "private": true,
   "type": "module",
   "description": "Dex staff operations CLI, TUI, and Tauri desktop shell.",
