@@ -41,12 +41,64 @@ function ago(unix: number | null): string {
   return `${Math.floor(secs / 86400)}d`;
 }
 
+// Aging signal from last activity (proxy for SLA): fresh < 1d, warn < 3d, stale ≥ 3d.
+function ageLevel(unix: number | null): "fresh" | "warn" | "stale" {
+  if (!unix) return "fresh";
+  const days = (Date.now() / 1000 - unix) / 86400;
+  if (days >= 3) return "stale";
+  if (days >= 1) return "warn";
+  return "fresh";
+}
+
+// Canned staff replies (P4 templates).
+const REPLY_TEMPLATES: Array<{ label: string; body: string }> = [
+  { label: "Acknowledge", body: "Thanks for your submission — it's in our review queue and we'll follow up soon." },
+  { label: "Need files", body: "Could you re-upload higher-resolution source files? The current ones are below our library spec." },
+  { label: "Accepted", body: "Good news — your submission has been accepted and is being scheduled into the library." },
+  { label: "Revisions", body: "We'd like a small revision before accepting — details below. Reply here when it's ready." },
+  { label: "Declined", body: "After review we won't be moving this one into the library right now. Thank you for submitting." },
+];
+
+const FILTERS_KEY = "dx.board.filters";
+type BoardFilters = { search: string; priority: string };
+function loadFilters(): BoardFilters {
+  try {
+    const raw = JSON.parse(localStorage.getItem(FILTERS_KEY) || "{}");
+    return { search: String(raw.search || ""), priority: String(raw.priority || "") };
+  } catch {
+    return { search: "", priority: "" };
+  }
+}
+
 export function SubmissionsBoard() {
   const { env, notify } = useStore();
   const [threads, setThreads] = useState<ThreadCard[]>([]);
   const [loading, setLoading] = useState(false);
   const [detail, setDetail] = useState<ThreadCard | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
+  const [filters, setFilters] = useState<BoardFilters>(loadFilters);
+  const [swimlane, setSwimlane] = useState<"none" | "assignee">("none");
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(FILTERS_KEY, JSON.stringify(filters));
+    } catch {
+      /* ignore */
+    }
+  }, [filters]);
+
+  const filtered = threads.filter((t) => {
+    if (filters.priority && (t.priority || "normal") !== filters.priority) return false;
+    if (filters.search.trim()) {
+      const q = filters.search.trim().toLowerCase();
+      const hay = `${t.title} ${t.lookup} ${t.creator} ${t.assignee} ${t.tags.join(" ")}`.toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+  const lanes = swimlane === "assignee"
+    ? Array.from(new Set(filtered.map((t) => t.assignee || "Unassigned"))).sort()
+    : ["__all__"];
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -90,69 +142,104 @@ export function SubmissionsBoard() {
     );
   }
 
+  const renderCard = (card: ThreadCard) => {
+    const age = ageLevel(card.updatedAt);
+    return (
+      <div
+        key={card.submissionId}
+        className={`kanban-card pri-${card.priority || "normal"}`}
+        draggable
+        onDragStart={(e) => {
+          e.dataTransfer.setData("text/plain", card.submissionId);
+          setDragId(card.submissionId);
+        }}
+        onDragEnd={() => setDragId(null)}
+        onClick={() => setDetail(card)}
+      >
+        <div className="kanban-card-title">{card.title || card.lookup || card.submissionId}</div>
+        <div className="kanban-card-meta">
+          {card.lookup ? <span>{card.lookup}</span> : null}
+          {card.creator ? <span>· {card.creator}</span> : null}
+        </div>
+        <div className="kanban-card-foot">
+          {card.priority ? <span className={`kanban-pri kanban-pri-${card.priority}`}>{card.priority}</span> : null}
+          {card.assignee ? <span className="kanban-assignee">@{card.assignee}</span> : null}
+          <span className="grow" />
+          <span className={`kanban-sla kanban-sla-${age}`} title="Time since last activity">{ago(card.updatedAt)}</span>
+        </div>
+        {card.tags.length ? (
+          <div className="kanban-tags">
+            {card.tags.slice(0, 3).map((t) => <span className="kanban-tag" key={t}>{t}</span>)}
+          </div>
+        ) : null}
+      </div>
+    );
+  };
+
+  const renderBoard = (cards: ThreadCard[]) => (
+    <div className="kanban">
+      {BOARD_STAGES.map((stage) => {
+        const stageCards = cards.filter((t) => t.stage === stage);
+        return (
+          <div
+            key={stage}
+            className={`kanban-col kanban-${stage}`}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => {
+              e.preventDefault();
+              const id = e.dataTransfer.getData("text/plain") || dragId;
+              if (id) moveToStage(id, stage);
+              setDragId(null);
+            }}
+          >
+            <div className="kanban-col-head">
+              <span>{STAGE_LABELS[stage] || stage}</span>
+              <span className="kanban-count">{stageCards.length}</span>
+            </div>
+            <div className="kanban-cards">
+              {stageCards.map(renderCard)}
+              {stageCards.length === 0 ? <div className="kanban-empty">—</div> : null}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+
   return (
     <div className="stack">
-      <div className="inline">
+      <div className="inline board-filters">
         <button className="btn btn-ghost btn-sm" onClick={load} disabled={loading}>Refresh</button>
-        <span className="muted">{threads.length} threads</span>
+        <input
+          className="board-search"
+          value={filters.search}
+          onChange={(e) => setFilters((f) => ({ ...f, search: e.target.value }))}
+          placeholder="Search title, lookup, creator, tag…"
+        />
+        <select value={filters.priority} onChange={(e) => setFilters((f) => ({ ...f, priority: e.target.value }))}>
+          <option value="">All priorities</option>
+          <option value="high">High</option>
+          <option value="normal">Normal</option>
+          <option value="low">Low</option>
+        </select>
+        <select value={swimlane} onChange={(e) => setSwimlane(e.target.value as "none" | "assignee")} title="Swimlanes">
+          <option value="none">No swimlanes</option>
+          <option value="assignee">By assignee</option>
+        </select>
+        <span className="muted">{filtered.length}/{threads.length}</span>
       </div>
 
-      <div className="kanban">
-        {BOARD_STAGES.map((stage) => {
-          const cards = threads.filter((t) => t.stage === stage);
-          return (
-            <div
-              key={stage}
-              className={`kanban-col kanban-${stage}`}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={(e) => {
-                e.preventDefault();
-                const id = e.dataTransfer.getData("text/plain") || dragId;
-                if (id) moveToStage(id, stage);
-                setDragId(null);
-              }}
-            >
-              <div className="kanban-col-head">
-                <span>{STAGE_LABELS[stage] || stage}</span>
-                <span className="kanban-count">{cards.length}</span>
-              </div>
-              <div className="kanban-cards">
-                {cards.map((card) => (
-                  <div
-                    key={card.submissionId}
-                    className={`kanban-card pri-${card.priority || "normal"}`}
-                    draggable
-                    onDragStart={(e) => {
-                      e.dataTransfer.setData("text/plain", card.submissionId);
-                      setDragId(card.submissionId);
-                    }}
-                    onDragEnd={() => setDragId(null)}
-                    onClick={() => setDetail(card)}
-                  >
-                    <div className="kanban-card-title">{card.title || card.lookup || card.submissionId}</div>
-                    <div className="kanban-card-meta">
-                      {card.lookup ? <span>{card.lookup}</span> : null}
-                      {card.creator ? <span>· {card.creator}</span> : null}
-                    </div>
-                    <div className="kanban-card-foot">
-                      {card.priority ? <span className={`kanban-pri kanban-pri-${card.priority}`}>{card.priority}</span> : null}
-                      {card.assignee ? <span className="kanban-assignee">@{card.assignee}</span> : null}
-                      <span className="grow" />
-                      <span className="muted">{ago(card.updatedAt)}</span>
-                    </div>
-                    {card.tags.length ? (
-                      <div className="kanban-tags">
-                        {card.tags.slice(0, 3).map((t) => <span className="kanban-tag" key={t}>{t}</span>)}
-                      </div>
-                    ) : null}
-                  </div>
-                ))}
-                {cards.length === 0 ? <div className="kanban-empty">—</div> : null}
-              </div>
-            </div>
-          );
-        })}
-      </div>
+      {lanes.map((lane) => {
+        const laneCards = swimlane === "assignee"
+          ? filtered.filter((t) => (t.assignee || "Unassigned") === lane)
+          : filtered;
+        return (
+          <div key={lane} className="board-lane">
+            {swimlane === "assignee" ? <div className="board-lane-head">@{lane} · {laneCards.length}</div> : null}
+            {renderBoard(laneCards)}
+          </div>
+        );
+      })}
 
       {detail ? <ThreadDrawer card={detail} onClose={() => setDetail(null)} onChanged={load} /> : null}
     </div>
@@ -263,6 +350,14 @@ function ThreadDrawer({ card, onClose, onChanged }: { card: ThreadCard; onClose:
         </div>
 
         <div className="thread-composer">
+          <div className="inline thread-templates">
+            <span className="muted" style={{ fontSize: 11 }}>Templates:</span>
+            {REPLY_TEMPLATES.map((t) => (
+              <button key={t.label} className="btn btn-ghost btn-sm" type="button" onClick={() => setReply((cur) => (cur.trim() ? `${cur}\n\n${t.body}` : t.body))}>
+                {t.label}
+              </button>
+            ))}
+          </div>
           <textarea value={reply} onChange={(e) => setReply(e.target.value)} placeholder={visibility === "public" ? "Reply to the member…" : "Internal note (staff only)…"} rows={3} />
           <div className="inline">
             <select value={visibility} onChange={(e) => setVisibility(e.target.value as "public" | "internal")}>

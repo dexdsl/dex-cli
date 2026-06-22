@@ -1442,3 +1442,17 @@ a.btn:hover {
 .thread-event-body { font-size: 12.5px; margin-top: 3px; line-height: 1.4; white-space: pre-wrap; }
 .thread-composer { display: grid; gap: 8px; margin-top: 8px; }
 .thread-composer textarea { width: 100%; }
+
+/* ----------------------------------------------- board filters / P4 --- */
+.board-filters { flex-wrap: wrap; gap: 8px; }
+.board-search { flex: 1 1 220px; min-width: 160px; padding: 6px 10px; border-radius: 8px; border: 1px solid var(--dx-border); background: var(--dx-surface-strong); color: var(--dx-text); }
+.board-lane { display: grid; gap: 4px; }
+.board-lane-head { font-weight: 800; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--dx-accent-solid); padding: 6px 2px 0; }
+
+.kanban-sla { font-weight: 700; padding: 0 5px; border-radius: 4px; }
+.kanban-sla-fresh { color: var(--dx-text-muted); }
+.kanban-sla-warn { color: #d6932f; border: 1px solid rgba(214,147,47,.4); }
+.kanban-sla-stale { color: #f0a8b0; border: 1px solid rgba(224,34,58,.45); }
+
+.thread-templates { flex-wrap: wrap; gap: 5px; }
+.thread-templates .btn { padding: 3px 8px; font-size: 11px; }

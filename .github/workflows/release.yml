@@ -1,0 +1,60 @@
+name: Release
+
+# Push a tag like v0.1.0 (or run manually) to build installers on every platform
+# and attach them to a draft GitHub release:
+#   - macOS: universal .dmg + .app
+#   - Windows: .msi + .exe (NSIS)
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+jobs:
+  release:
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos-latest
+            args: "--target universal-apple-darwin"
+            rust-targets: "aarch64-apple-darwin,x86_64-apple-darwin"
+          - platform: windows-latest
+            args: ""
+            rust-targets: ""
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust-targets }}
+
+      - name: Cache cargo
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "./src-tauri -> target"
+
+      - name: Install dependencies
+        run: |
+          npm install
+          npm --prefix desktop install
+
+      - name: Build + publish (tauri-action)
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: "Dex Ops Studio ${{ github.ref_name }}"
+          releaseBody: "Automated build. Installers are attached below."
+          releaseDraft: true
+          prerelease: false
+          args: ${{ matrix.args }}
