@@ -111,15 +111,22 @@ export async function pickSiteDirectory(): Promise<string | null> {
   return typeof result === "string" ? result : null;
 }
 
-export async function pickImageFile(): Promise<string | null> {
+export async function pickAnyFile(opts: { title?: string; filters?: Array<{ name: string; extensions: string[] }> } = {}): Promise<string | null> {
   const { open } = await import("@tauri-apps/plugin-dialog");
   const result = await open({
     directory: false,
     multiple: false,
+    title: opts.title || "Choose a file",
+    ...(opts.filters ? { filters: opts.filters } : {}),
+  });
+  return typeof result === "string" ? result : null;
+}
+
+export async function pickImageFile(): Promise<string | null> {
+  return pickAnyFile({
     title: "Choose entry image",
     filters: [{ name: "Images", extensions: ["png", "jpg", "jpeg", "webp", "gif", "avif"] }],
   });
-  return typeof result === "string" ? result : null;
 }
 
 /* ----------------------------------------------- legacy raw-command path - */

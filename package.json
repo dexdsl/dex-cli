@@ -13,6 +13,8 @@
     "gui:workspace": "node scripts/dex-gui-bridge.mjs workspace",
     "desktop:dev": "npm --prefix desktop run dev",
     "desktop:build": "npm --prefix desktop run build",
+    "desktop:uav:test": "node scripts/test-uav-desktop-contract.mjs",
+    "desktop:hero:test": "node scripts/test-hero-desktop-contract.mjs",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build --bundles app",

@@ -46,15 +46,24 @@ export function UsersScreen() {
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [confirmState, setConfirmState] = useState<ConfirmState | null>(null);
+  const [notConfigured, setNotConfigured] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
+    setNotConfigured(false);
     try {
       const payload = payloadOf<any>(await rpc("users.list", { env, page, perPage: PER_PAGE, q: query }));
       setUsers(Array.isArray(payload.users) ? payload.users : []);
       setTotal(Number(payload.total || 0));
     } catch (error) {
-      notify("err", String(error));
+      const message = String(error);
+      // The worker proxies to the Auth0 Management API; a 503/NOT_CONFIGURED
+      // means the API isn't wired up server-side, not a transient failure.
+      if (/AUTH0_MGMT_NOT_CONFIGURED|Management API is not configured/i.test(message)) {
+        setNotConfigured(true);
+      } else {
+        notify("err", message);
+      }
       setUsers([]);
       setTotal(0);
     } finally {
@@ -161,6 +170,30 @@ export function UsersScreen() {
 
       <div className="muted">{total} user{total === 1 ? "" : "s"} · page {page + 1} of {totalPages}</div>
 
+      {notConfigured ? (
+        <div className="panel users-config-notice">
+          <h3>Auth0 Management API not configured</h3>
+          <p className="muted">
+            The directory endpoint (<code>GET /admin/users</code>) proxies to the Auth0 Management API,
+            which isn’t wired up on the <strong>{env}</strong> worker — so it returns
+            <code> 503 AUTH0_MGMT_NOT_CONFIGURED</code>. This is a server-side configuration step, not a
+            problem with this app.
+          </p>
+          <p className="muted">The dex-api worker needs all three, then a redeploy:</p>
+          <ul className="users-config-vars">
+            <li><code>AUTH0_ISSUER_BASE_URL</code> — full URL, e.g. <code>https://dexdsl.us.auth0.com/</code> (already set as a var)</li>
+            <li><code>AUTH0_MGMT_CLIENT_ID</code> — secret</li>
+            <li><code>AUTH0_MGMT_CLIENT_SECRET</code> — secret</li>
+          </ul>
+          <p className="muted">
+            Use a <strong>Machine-to-Machine</strong> app (not a SPA) that is authorized for the
+            <strong> Auth0 Management API</strong> with <code>read:users</code>, <code>update:users</code>,
+            <code>delete:users</code>, <code>create:user_tickets</code>. This 503 also appears when the
+            Management-API token request fails — run <code>wrangler tail</code> to see the exact reason.
+          </p>
+          <button className="btn btn-sm" onClick={load} disabled={loading}>Retry</button>
+        </div>
+      ) : (
       <div className="panel" style={{ padding: "var(--dx-space-sm)" }}>
         {loading ? (
           <>
@@ -245,6 +278,7 @@ export function UsersScreen() {
         </div>
         )}
       </div>
+      )}
 
       <ConfirmDialog state={confirmState} onClose={() => setConfirmState(null)} />
 

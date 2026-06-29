@@ -2,36 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 import { rpc, payloadOf } from "../api";
 import { useStore } from "../store";
 import { DexLoader, SkeletonRows } from "../components/DexLoader";
-
-type ThreadCard = {
-  submissionId: string;
-  auth0Sub: string;
-  title: string;
-  lookup: string;
-  creator: string;
-  category: string;
-  instrument: string;
-  stage: string;
-  statusRaw: string;
-  latestPublicNote: string;
-  kind: string;
-  assignee: string;
-  priority: string;
-  tags: string[];
-  updatedAt: number | null;
-};
-
-const STAGE_LABELS: Record<string, string> = {
-  sent: "Sent",
-  received: "Received",
-  acknowledged: "Acknowledged",
-  reviewing: "Reviewing",
-  accepted: "Accepted",
-  rejected: "Rejected",
-  in_library: "In library",
-};
-// Columns shown on the board (rejected is a side column).
-const BOARD_STAGES = ["received", "acknowledged", "reviewing", "accepted", "in_library", "rejected"];
+import { ThreadWorkspace } from "../components/ThreadWorkspace";
+import { BOARD_STAGES, STAGE_LABELS, stageTone, type SubmissionStage, type ThreadCard } from "../submissions";
 
 function ago(unix: number | null): string {
   if (!unix) return "";
@@ -50,15 +22,6 @@ function ageLevel(unix: number | null): "fresh" | "warn" | "stale" {
   return "fresh";
 }
 
-// Canned staff replies (P4 templates).
-const REPLY_TEMPLATES: Array<{ label: string; body: string }> = [
-  { label: "Acknowledge", body: "Thanks for your submission — it's in our review queue and we'll follow up soon." },
-  { label: "Need files", body: "Could you re-upload higher-resolution source files? The current ones are below our library spec." },
-  { label: "Accepted", body: "Good news — your submission has been accepted and is being scheduled into the library." },
-  { label: "Revisions", body: "We'd like a small revision before accepting — details below. Reply here when it's ready." },
-  { label: "Declined", body: "After review we won't be moving this one into the library right now. Thank you for submitting." },
-];
-
 const FILTERS_KEY = "dx.board.filters";
 type BoardFilters = { search: string; priority: string };
 function loadFilters(): BoardFilters {
@@ -74,7 +37,7 @@ export function SubmissionsBoard() {
   const { env, notify } = useStore();
   const [threads, setThreads] = useState<ThreadCard[]>([]);
   const [loading, setLoading] = useState(false);
-  const [detail, setDetail] = useState<ThreadCard | null>(null);
+  const [detail, setDetail] = useState<{ card: ThreadCard; requestedStage: SubmissionStage | null } | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
   const [filters, setFilters] = useState<BoardFilters>(loadFilters);
   const [swimlane, setSwimlane] = useState<"none" | "assignee">("none");
@@ -118,19 +81,12 @@ export function SubmissionsBoard() {
   }, [load]);
 
   const moveToStage = useCallback(
-    async (submissionId: string, stage: string) => {
+    async (submissionId: string, stage: SubmissionStage) => {
       const card = threads.find((t) => t.submissionId === submissionId);
       if (!card || card.stage === stage) return;
-      setThreads((prev) => prev.map((t) => (t.submissionId === submissionId ? { ...t, stage } : t)));
-      try {
-        await rpc("threads.patch", { env, submissionId, patch: { stage } });
-        notify("ok", `Moved to ${STAGE_LABELS[stage] || stage}.`);
-      } catch (error) {
-        notify("err", String(error));
-        load();
-      }
+      setDetail({ card, requestedStage: stage });
     },
-    [env, threads, notify, load],
+    [threads],
   );
 
   if (loading && !threads.length) {
@@ -154,7 +110,7 @@ export function SubmissionsBoard() {
           setDragId(card.submissionId);
         }}
         onDragEnd={() => setDragId(null)}
-        onClick={() => setDetail(card)}
+        onClick={() => setDetail({ card, requestedStage: null })}
       >
         <div className="kanban-card-title">{card.title || card.lookup || card.submissionId}</div>
         <div className="kanban-card-meta">
@@ -183,7 +139,7 @@ export function SubmissionsBoard() {
         return (
           <div
             key={stage}
-            className={`kanban-col kanban-${stage}`}
+            className={`kanban-col kanban-${stage} tone-${stageTone(stage)}`}
             onDragOver={(e) => e.preventDefault()}
             onDrop={(e) => {
               e.preventDefault();
@@ -207,7 +163,7 @@ export function SubmissionsBoard() {
   );
 
   return (
-    <div className="stack">
+    <div className="stack board-fill">
       <div className="inline board-filters">
         <button className="btn btn-ghost btn-sm" onClick={load} disabled={loading}>Refresh</button>
         <input
@@ -229,149 +185,28 @@ export function SubmissionsBoard() {
         <span className="muted">{filtered.length}/{threads.length}</span>
       </div>
 
-      {lanes.map((lane) => {
-        const laneCards = swimlane === "assignee"
-          ? filtered.filter((t) => (t.assignee || "Unassigned") === lane)
-          : filtered;
-        return (
-          <div key={lane} className="board-lane">
-            {swimlane === "assignee" ? <div className="board-lane-head">@{lane} · {laneCards.length}</div> : null}
-            {renderBoard(laneCards)}
-          </div>
-        );
-      })}
-
-      {detail ? <ThreadDrawer card={detail} onClose={() => setDetail(null)} onChanged={load} /> : null}
-    </div>
-  );
-}
-
-function ThreadDrawer({ card, onClose, onChanged }: { card: ThreadCard; onClose: () => void; onChanged: () => void }) {
-  const { env, notify } = useStore();
-  const [full, setFull] = useState<any>(null);
-  const [loading, setLoading] = useState(false);
-  const [reply, setReply] = useState("");
-  const [visibility, setVisibility] = useState<"public" | "internal">("public");
-  const [priority, setPriority] = useState(card.priority || "normal");
-  const [assignee, setAssignee] = useState(card.assignee || "");
-  const [busy, setBusy] = useState(false);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      setFull(payloadOf<any>(await rpc("threads.get", { env, submissionId: card.submissionId })));
-    } catch (error) {
-      notify("err", String(error));
-    } finally {
-      setLoading(false);
-    }
-  }, [env, card.submissionId, notify]);
-
-  useEffect(() => {
-    load();
-  }, [load]);
-
-  async function sendReply() {
-    if (!reply.trim()) return;
-    setBusy(true);
-    try {
-      await rpc("threads.message", { env, submissionId: card.submissionId, body: reply.trim(), visibility });
-      notify("ok", "Message sent.");
-      setReply("");
-      await load();
-      onChanged();
-    } catch (error) {
-      notify("err", String(error));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function saveMeta() {
-    setBusy(true);
-    try {
-      await rpc("threads.patch", { env, submissionId: card.submissionId, patch: { priority, assignee } });
-      notify("ok", "Saved.");
-      onChanged();
-    } catch (error) {
-      notify("err", String(error));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  const timeline: any[] = full?.thread?.timeline || full?.timeline || [];
-
-  return (
-    <div className="dx-modal-overlay" onClick={() => !busy && onClose()}>
-      <div className="dx-modal dx-modal-wide" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
-        <div className="dx-modal-head">
-          <h3 className="dx-modal-title">{card.title || card.lookup || card.submissionId}</h3>
-          <span className={`chip status-${card.stage}`}>{STAGE_LABELS[card.stage] || card.stage}</span>
-        </div>
-        <div className="muted" style={{ fontSize: 12 }}>{card.lookup} · {card.creator} · {card.category} {card.instrument}</div>
-
-        <div className="field-row">
-          <div className="field">
-            <label>Priority</label>
-            <select value={priority} onChange={(e) => setPriority(e.target.value)}>
-              <option value="low">Low</option>
-              <option value="normal">Normal</option>
-              <option value="high">High</option>
-            </select>
-          </div>
-          <div className="field">
-            <label>Assignee</label>
-            <input value={assignee} onChange={(e) => setAssignee(e.target.value)} placeholder="staff handle" />
-          </div>
-          <div className="field" style={{ alignSelf: "flex-end" }}>
-            <button className="btn btn-sm" disabled={busy} onClick={saveMeta}>Save meta</button>
-          </div>
-        </div>
-
-        <div className="thread-timeline">
-          {loading ? <DexLoader phase="Loading" detail="timeline" /> : null}
-          {timeline.map((ev, i) => {
-            const internal = (ev.visibility || (ev.internalNote ? "internal" : "public")) === "internal" || Boolean(ev.internalNote);
-            const body = ev.publicNote || ev.public_note || ev.internalNote || ev.internal_note || ev.note || "";
-            const who = ev.actorType || ev.actor_type || "system";
-            return (
-              <div key={i} className={`thread-event thread-${who} ${internal ? "thread-internal" : ""}`}>
-                <div className="thread-event-meta">
-                  <strong>{who}</strong>
-                  <span className="muted">{ev.eventType || ev.event_type || ev.stage}</span>
-                  {internal ? <span className="thread-lock">internal</span> : null}
-                </div>
-                {body ? <div className="thread-event-body">{body}</div> : null}
-              </div>
-            );
-          })}
-          {!loading && timeline.length === 0 ? <div className="muted">No timeline events.</div> : null}
-        </div>
-
-        <div className="thread-composer">
-          <div className="inline thread-templates">
-            <span className="muted" style={{ fontSize: 11 }}>Templates:</span>
-            {REPLY_TEMPLATES.map((t) => (
-              <button key={t.label} className="btn btn-ghost btn-sm" type="button" onClick={() => setReply((cur) => (cur.trim() ? `${cur}\n\n${t.body}` : t.body))}>
-                {t.label}
-              </button>
-            ))}
-          </div>
-          <textarea value={reply} onChange={(e) => setReply(e.target.value)} placeholder={visibility === "public" ? "Reply to the member…" : "Internal note (staff only)…"} rows={3} />
-          <div className="inline">
-            <select value={visibility} onChange={(e) => setVisibility(e.target.value as "public" | "internal")}>
-              <option value="public">Public (member sees)</option>
-              <option value="internal">Internal note</option>
-            </select>
-            <span className="grow" />
-            <button className="btn btn-sm" onClick={onClose}>Close</button>
-            <button className="btn btn-sm btn-primary" disabled={busy || !reply.trim()} onClick={sendReply}>
-              {busy ? "Sending…" : "Send"}
-            </button>
-          </div>
-        </div>
+      <div className={`board-lanes ${swimlane === "assignee" ? "is-swimlanes" : ""}`}>
+        {lanes.map((lane) => {
+          const laneCards = swimlane === "assignee"
+            ? filtered.filter((t) => (t.assignee || "Unassigned") === lane)
+            : filtered;
+          return (
+            <div key={lane} className="board-lane">
+              {swimlane === "assignee" ? <div className="board-lane-head">@{lane} · {laneCards.length}</div> : null}
+              {renderBoard(laneCards)}
+            </div>
+          );
+        })}
       </div>
+
+      {detail ? (
+        <ThreadWorkspace
+          card={detail.card}
+          requestedStage={detail.requestedStage}
+          onClose={() => setDetail(null)}
+          onChanged={load}
+        />
+      ) : null}
     </div>
   );
 }

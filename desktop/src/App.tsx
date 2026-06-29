@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import {
   Boxes,
+  PanelsTopLeft,
   Inbox,
   BarChart3,
   Users,
   UserRound,
+  Image as ImageIcon,
   Settings as SettingsIcon,
   Moon,
   Sun,
@@ -19,19 +21,23 @@ import { GitBar } from "./components/GitBar";
 import { GlobalLoadingBar } from "./components/GlobalLoadingBar";
 import type { Env } from "./domain";
 import { EntriesScreen } from "./screens/Entries";
+import { HeroScreen } from "./screens/Hero";
 import { SubmissionsScreen } from "./screens/Submissions";
 import { PollsScreen } from "./screens/Polls";
 import { ProfilesScreen } from "./screens/Profiles";
 import { UsersScreen } from "./screens/Users";
+import { AssetsScreen } from "./screens/Assets";
 import { SettingsScreen } from "./screens/Settings";
 
-type ScreenId = "entries" | "submissions" | "polls" | "profiles" | "users" | "settings";
+type ScreenId = "entries" | "hero" | "assets" | "submissions" | "polls" | "profiles" | "users" | "settings";
 
 const NAV: Array<{ id: ScreenId; label: string; icon: typeof Boxes }> = [
   { id: "entries", label: "Entries", icon: Boxes },
+  { id: "hero", label: "Hero", icon: PanelsTopLeft },
+  { id: "assets", label: "Assets", icon: ImageIcon },
   { id: "submissions", label: "Submissions", icon: Inbox },
   { id: "polls", label: "Polls", icon: BarChart3 },
-  { id: "profiles", label: "Profiles", icon: Users },
+  { id: "profiles", label: "Claims", icon: Users },
   { id: "users", label: "Users", icon: UserRound },
   { id: "settings", label: "Settings", icon: SettingsIcon },
 ];
@@ -193,6 +199,8 @@ export default function App() {
 
         <div className="content">
           {screen === "entries" && <EntriesScreen />}
+          {screen === "hero" && <HeroScreen />}
+          {screen === "assets" && <AssetsScreen />}
           {screen === "submissions" && <SubmissionsScreen />}
           {screen === "polls" && <PollsScreen />}
           {screen === "profiles" && <ProfilesScreen />}
